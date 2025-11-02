@@ -36,9 +36,20 @@ const Dialog: React.FC<DialogProps> = ({ open: controlledOpen, onOpenChange, chi
   );
 };
 
-const DialogTrigger = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement>>(
-  ({ className, onClick, ...props }, ref) => {
+const DialogTrigger = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { asChild?: boolean }>(
+  ({ className, onClick, asChild, children, ...props }, ref) => {
     const { onOpenChange } = useDialogContext();
+    
+    if (asChild && React.isValidElement(children)) {
+      return React.cloneElement(children as React.ReactElement<any>, {
+        onClick: (e: any) => {
+          onOpenChange(true);
+          onClick?.(e);
+          (children as React.ReactElement<any>).props.onClick?.(e);
+        },
+      });
+    }
+    
     return (
       <button
         ref={ref}
@@ -48,7 +59,9 @@ const DialogTrigger = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttrib
           onClick?.(e);
         }}
         {...props}
-      />
+      >
+        {children}
+      </button>
     );
   }
 );

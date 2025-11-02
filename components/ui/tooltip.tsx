@@ -31,6 +31,11 @@ const TooltipProvider: React.FC<TooltipProviderProps> = ({ children }) => {
   );
 };
 
+// Tooltip wrapper component for convenience
+const Tooltip: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <>{children}</>;
+};
+
 export interface TooltipTriggerProps {
   asChild?: boolean;
   children: React.ReactNode;
@@ -82,5 +87,5 @@ const TooltipContent: React.FC<TooltipContentProps> = ({ children, className }) 
   );
 };
 
-export { TooltipProvider, TooltipTrigger, TooltipContent };
+export { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent };
 
