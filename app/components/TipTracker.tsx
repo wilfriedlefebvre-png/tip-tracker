@@ -261,9 +261,9 @@ function EntriesTable({ entries, onChange }: { entries: TipEntry[]; onChange: (e
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm bg-card/95 backdrop-blur-sm rounded-lg">
         <thead>
-          <tr className="text-left border-b">
+          <tr className="text-left border-b bg-card/90">
             {[
               { k: "date", label: "Date" },
               { k: "restaurant", label: "Restaurant" },
@@ -286,7 +286,7 @@ function EntriesTable({ entries, onChange }: { entries: TipEntry[]; onChange: (e
           {rows.map((e) => {
             const isEditing = editingId === e.id;
             return (
-              <tr key={e.id} className="border-b hover:bg-muted/40">
+              <tr key={e.id} className="border-b bg-card/80 hover:bg-card/95 transition-colors">
                 <td className="py-2 pr-2">
                   {isEditing ? (
                     <Input
