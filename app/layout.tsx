@@ -15,6 +15,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Tip Tracker",
   description: "Track and manage your tips easily",
+  icons: {
+    icon: '/final-background.png',
+    apple: '/final-background.png',
+    shortcut: '/final-background.png',
+  },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Tip Tracker',
+  },
 };
 
 export default function RootLayout({
