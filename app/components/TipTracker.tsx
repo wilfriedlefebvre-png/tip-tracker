@@ -513,8 +513,8 @@ export default function TipTrackerApp() {
         {/* Overlay to cover white text at top */}
         <div className="absolute top-0 left-0 right-0 h-48 bg-gradient-to-b from-background via-background/80 to-transparent pointer-events-none"></div>
         
-        {/* Overlay to cover buttons at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none"></div>
+        {/* Overlay to cover buttons and blue section at bottom */}
+        <div className="absolute bottom-0 left-0 right-0 h-80 bg-gradient-to-t from-background via-background/95 to-transparent pointer-events-none"></div>
         
         {/* Content */}
         <div className="relative z-10 max-w-5xl mx-auto grid gap-6">
