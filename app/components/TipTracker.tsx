@@ -1007,6 +1007,16 @@ export default function TipTrackerApp() {
           <div className="text-sm text-white/90 text-center drop-shadow-md">
             Total net so far: <span className="font-semibold">{formatUSD(totalNet)}</span>
           </div>
+          <div className="text-xs text-white/70 text-center drop-shadow-sm mt-2">
+            <a 
+              href="https://portofolio-zeta-bay.vercel.app/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:text-white/90 underline transition-colors"
+            >
+              View My Portfolio
+            </a>
+          </div>
         </div>
       </div>
     </TooltipProvider>
