@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Edit, Save, X, Calendar, FileDown, Upload, BarChart2 } from "lucide-react";
+import { Plus, Trash2, Edit, Save, X, Calendar, FileDown, BarChart2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -473,8 +473,8 @@ function Report({ entries }: { entries: TipEntry[] }) {
 
 export default function TipTrackerApp() {
   const [entries, setEntries] = useState<TipEntry[]>([]);
-  const [importOpen, setImportOpen] = useState(false);
-  const [csvText, setCsvText] = useState("");
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  const [fileName, setFileName] = useState("tips");
 
   useEffect(() => {
     setEntries(loadEntries());
@@ -485,6 +485,18 @@ export default function TipTrackerApp() {
 
   // Derived stats
   const totalNet = useMemo(() => entries.reduce((s, e) => s + (e.made - e.tipOut), 0), [entries]);
+
+  const handleDownload = () => {
+    const blob = new Blob([toCSV(entries)], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName.endsWith(".csv") ? fileName : `${fileName}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setDownloadOpen(false);
+    setFileName("tips");
+  };
 
   return (
     <TooltipProvider>
@@ -498,6 +510,9 @@ export default function TipTrackerApp() {
           backgroundAttachment: 'fixed'
         }}
       >
+        {/* Overlay to cover white text at top */}
+        <div className="absolute top-0 left-0 right-0 h-48 bg-gradient-to-b from-background via-background/80 to-transparent pointer-events-none"></div>
+        
         {/* Overlay to cover buttons at bottom */}
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none"></div>
         
@@ -506,61 +521,41 @@ export default function TipTrackerApp() {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl md:text-3xl font-semibold text-white drop-shadow-lg">🍽️ Tip Tracker</h1>
             <div className="flex gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      const blob = new Blob([toCSV(entries)], { type: "text/csv;charset=utf-8" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = "tips.csv";
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    }}
-                  >
-                    <FileDown className="w-4 h-4 mr-2" /> Export CSV
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Download your data</TooltipContent>
-              </Tooltip>
-
-              <Dialog open={importOpen} onOpenChange={setImportOpen}>
+              <Dialog open={downloadOpen} onOpenChange={setDownloadOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="secondary">
-                    <Upload className="w-4 h-4 mr-2" /> Import CSV
+                  <Button variant="outline">
+                    <FileDown className="w-4 h-4 mr-2" /> Download
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Import CSV</DialogTitle>
+                    <DialogTitle>Download CSV File</DialogTitle>
                   </DialogHeader>
                   <div className="grid gap-3">
-                    <p className="text-sm text-muted-foreground">Columns required: date, made, tipOut, restaurant, notes</p>
-                    <textarea
-                      className="w-full h-48 border rounded-md p-2"
-                      value={csvText}
-                      onChange={(e) => setCsvText(e.target.value)}
-                      placeholder={`date,made,tipOut,restaurant,notes\n2025-11-02,220,40,Restaurant Name,Busy brunch`}
-                    ></textarea>
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" onClick={() => setImportOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          try {
-                            const imported = fromCSV(csvText);
-                            setEntries((prev) => [...prev, ...imported].sort((a, b) => a.date.localeCompare(b.date)));
-                            setCsvText("");
-                            setImportOpen(false);
-                          } catch (e) {
-                            alert("Import failed. Check your CSV formatting.");
+                    <div>
+                      <Label htmlFor="fileName">File Name</Label>
+                      <Input
+                        id="fileName"
+                        value={fileName}
+                        onChange={(e) => setFileName(e.target.value)}
+                        placeholder="tips"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleDownload();
                           }
                         }}
-                      >
-                        Import
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">File will be saved as {fileName || "tips"}.csv</p>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" onClick={() => {
+                        setDownloadOpen(false);
+                        setFileName("tips");
+                      }}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleDownload}>
+                        Download
                       </Button>
                     </div>
                   </div>
