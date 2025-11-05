@@ -126,8 +126,8 @@ function fromCSV(csv: string): TipEntry[] {
 // Components
 function AddEntryForm({ onAdd, entries }: { onAdd: (e: TipEntry) => void; entries: TipEntry[] }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [made, setMade] = useState(0);
-  const [tipOut, setTipOut] = useState(0);
+  const [made, setMade] = useState("");
+  const [tipOut, setTipOut] = useState("");
   const [restaurant, setRestaurant] = useState(() => {
     try {
       return localStorage.getItem(LS_RESTAURANT_KEY) || "";
@@ -182,7 +182,7 @@ function AddEntryForm({ onAdd, entries }: { onAdd: (e: TipEntry) => void; entrie
               inputMode="decimal"
               placeholder="0.00"
               value={made}
-              onChange={(e) => setMade(Number(e.target.value))}
+              onChange={(e) => setMade(e.target.value)}
             />
           </div>
           <div>
@@ -192,7 +192,7 @@ function AddEntryForm({ onAdd, entries }: { onAdd: (e: TipEntry) => void; entrie
               inputMode="decimal"
               placeholder="0.00"
               value={tipOut}
-              onChange={(e) => setTipOut(Number(e.target.value))}
+              onChange={(e) => setTipOut(e.target.value)}
             />
           </div>
           <div className="flex gap-2">
@@ -207,9 +207,9 @@ function AddEntryForm({ onAdd, entries }: { onAdd: (e: TipEntry) => void; entrie
                     saveRestaurant(trimmedRestaurant);
                   } catch {}
                 }
-                onAdd({ id: uid(), date, made, tipOut, restaurant: trimmedRestaurant || undefined, notes });
-                setMade(0);
-                setTipOut(0);
+                onAdd({ id: uid(), date, made: Number(made) || 0, tipOut: Number(tipOut) || 0, restaurant: trimmedRestaurant || undefined, notes });
+                setMade("");
+                setTipOut("");
                 setNotes("");
                 // Keep restaurant name for next entry
               }}
@@ -566,7 +566,7 @@ export default function TipTrackerApp() {
       <div 
         className="min-h-dvh p-4 md:p-8 text-foreground relative"
         style={{
-          backgroundImage: 'url(/new picture background.png)',
+          backgroundImage: 'url(/new-picture-background.png)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
