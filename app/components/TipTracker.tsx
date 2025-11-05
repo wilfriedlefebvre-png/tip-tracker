@@ -461,10 +461,23 @@ export default function TipTrackerApp() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-dvh p-4 md:p-8 bg-background text-foreground">
-        <div className="max-w-5xl mx-auto grid gap-6">
+      <div 
+        className="min-h-dvh p-4 md:p-8 text-foreground relative"
+        style={{
+          backgroundImage: 'url(/main-menu-background.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed'
+        }}
+      >
+        {/* Overlay for readability */}
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        
+        {/* Content */}
+        <div className="relative z-10 max-w-5xl mx-auto grid gap-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl md:text-3xl font-semibold">🍽️ Tip Tracker</h1>
+            <h1 className="text-2xl md:text-3xl font-semibold text-white drop-shadow-lg">🍽️ Tip Tracker</h1>
             <div className="flex gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -556,7 +569,7 @@ export default function TipTrackerApp() {
             </TabsContent>
           </Tabs>
 
-          <div className="text-sm text-muted-foreground text-center">
+          <div className="text-sm text-white/90 text-center drop-shadow-md">
             Total net so far: <span className="font-semibold">{formatUSD(totalNet)}</span>
           </div>
         </div>
