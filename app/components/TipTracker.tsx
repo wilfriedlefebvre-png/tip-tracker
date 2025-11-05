@@ -972,7 +972,7 @@ export default function TipTrackerApp() {
             <TabsList>
               <TabsTrigger value="add">
                 <Plus className="w-4 h-4 mr-1" />
-                Add
+                Income
               </TabsTrigger>
               <TabsTrigger value="expenses">
                 💰 Expenses
