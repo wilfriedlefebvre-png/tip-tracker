@@ -23,6 +23,30 @@ interface TipEntry {
 
 // Helpers
 const LS_KEY = "tipEntries.v1";
+const LS_RESTAURANT_KEY = "lastRestaurant.v1";
+const LS_RESTAURANTS_KEY = "restaurants.v1";
+
+function getRestaurants(): string[] {
+  try {
+    const raw = localStorage.getItem(LS_RESTAURANTS_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as string[];
+  } catch {
+    return [];
+  }
+}
+
+function saveRestaurant(name: string) {
+  if (!name.trim()) return;
+  try {
+    const restaurants = getRestaurants();
+    const trimmed = name.trim();
+    if (!restaurants.includes(trimmed)) {
+      restaurants.push(trimmed);
+      localStorage.setItem(LS_RESTAURANTS_KEY, JSON.stringify(restaurants));
+    }
+  } catch {}
+}
 
 function loadEntries(): TipEntry[] {
   try {
@@ -100,12 +124,28 @@ function fromCSV(csv: string): TipEntry[] {
 }
 
 // Components
-function AddEntryForm({ onAdd }: { onAdd: (e: TipEntry) => void }) {
+function AddEntryForm({ onAdd, entries }: { onAdd: (e: TipEntry) => void; entries: TipEntry[] }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [made, setMade] = useState(0);
   const [tipOut, setTipOut] = useState(0);
-  const [restaurant, setRestaurant] = useState("");
+  const [restaurant, setRestaurant] = useState(() => {
+    try {
+      return localStorage.getItem(LS_RESTAURANT_KEY) || "";
+    } catch {
+      return "";
+    }
+  });
   const [notes, setNotes] = useState("");
+
+  // Get all unique restaurant names from entries and saved restaurants
+  const restaurantOptions = useMemo(() => {
+    const fromEntries = entries
+      .map((e) => e.restaurant)
+      .filter((r): r is string => Boolean(r && r.trim()));
+    const fromStorage = getRestaurants();
+    const combined = [...new Set([...fromEntries, ...fromStorage])].sort();
+    return combined;
+  }, [entries]);
 
   return (
     <Card className="shadow-sm">
@@ -120,11 +160,20 @@ function AddEntryForm({ onAdd }: { onAdd: (e: TipEntry) => void }) {
           </div>
           <div>
             <Label>Restaurant</Label>
-            <Input
-              value={restaurant}
-              onChange={(e) => setRestaurant(e.target.value)}
-              placeholder="Restaurant name"
-            />
+            <div className="relative">
+              <Input
+                list="restaurant-list"
+                value={restaurant}
+                onChange={(e) => setRestaurant(e.target.value)}
+                placeholder="Select or type restaurant name"
+                className="w-full"
+              />
+              <datalist id="restaurant-list">
+                {restaurantOptions.map((r) => (
+                  <option key={r} value={r} />
+                ))}
+              </datalist>
+            </div>
           </div>
           <div>
             <Label>Made (Gross)</Label>
@@ -151,11 +200,18 @@ function AddEntryForm({ onAdd }: { onAdd: (e: TipEntry) => void }) {
               className="mt-6 w-full"
               onClick={() => {
                 if (!date) return;
-                onAdd({ id: uid(), date, made, tipOut, restaurant: restaurant || undefined, notes });
+                const trimmedRestaurant = restaurant.trim();
+                if (trimmedRestaurant) {
+                  try {
+                    localStorage.setItem(LS_RESTAURANT_KEY, trimmedRestaurant);
+                    saveRestaurant(trimmedRestaurant);
+                  } catch {}
+                }
+                onAdd({ id: uid(), date, made, tipOut, restaurant: trimmedRestaurant || undefined, notes });
                 setMade(0);
                 setTipOut(0);
-                setRestaurant("");
                 setNotes("");
+                // Keep restaurant name for next entry
               }}
             >
               <Plus className="w-4 h-4 mr-2" /> Add Shift
@@ -477,7 +533,14 @@ export default function TipTrackerApp() {
   const [fileName, setFileName] = useState("tips");
 
   useEffect(() => {
-    setEntries(loadEntries());
+    const loadedEntries = loadEntries();
+    setEntries(loadedEntries);
+    // Populate restaurant list from existing entries
+    loadedEntries.forEach((entry) => {
+      if (entry.restaurant) {
+        saveRestaurant(entry.restaurant);
+      }
+    });
   }, []);
   useEffect(() => {
     saveEntries(entries);
@@ -503,19 +566,13 @@ export default function TipTrackerApp() {
       <div 
         className="min-h-dvh p-4 md:p-8 text-foreground relative"
         style={{
-          backgroundImage: 'url(/main-menu-background.png)',
+          backgroundImage: 'url(/new picture background.png)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
           backgroundAttachment: 'fixed'
         }}
       >
-        {/* Overlay to cover white text at top */}
-        <div className="absolute top-0 left-0 right-0 h-48 bg-gradient-to-b from-background via-background/80 to-transparent pointer-events-none"></div>
-        
-        {/* Overlay to cover buttons and blue section at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 h-80 bg-gradient-to-t from-background via-background/95 to-transparent pointer-events-none"></div>
-        
         {/* Content */}
         <div className="relative z-10 max-w-5xl mx-auto grid gap-6">
           <div className="flex items-center justify-between">
@@ -576,7 +633,7 @@ export default function TipTrackerApp() {
               </TabsTrigger>
             </TabsList>
             <TabsContent value="add" className="mt-4">
-              <AddEntryForm onAdd={(e) => setEntries((prev) => [e, ...prev])} />
+              <AddEntryForm onAdd={(e) => setEntries((prev) => [e, ...prev])} entries={entries} />
               <div className="text-sm text-muted-foreground mt-2">Your data is saved locally on this device.</div>
               <div className="mt-6">
                 <SummaryCards entries={entries} />
