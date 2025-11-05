@@ -566,7 +566,7 @@ export default function TipTrackerApp() {
       <div 
         className="min-h-dvh p-4 md:p-8 text-foreground relative"
         style={{
-          backgroundImage: 'url(/new-background-2.png)',
+          backgroundImage: 'url(/final-background.png)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
@@ -576,7 +576,7 @@ export default function TipTrackerApp() {
         {/* Content */}
         <div className="relative z-10 max-w-5xl mx-auto grid gap-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl md:text-3xl font-semibold text-foreground drop-shadow-lg">🍽️ Tip Tracker</h1>
+            <h1 className="text-2xl md:text-3xl font-semibold text-white drop-shadow-lg">🍽️ Tip Tracker</h1>
             <div className="flex gap-2">
               <Dialog open={downloadOpen} onOpenChange={setDownloadOpen}>
                 <DialogTrigger asChild>
@@ -647,7 +647,7 @@ export default function TipTrackerApp() {
             </TabsContent>
           </Tabs>
 
-          <div className="text-sm text-foreground/90 text-center drop-shadow-md">
+          <div className="text-sm text-white/90 text-center drop-shadow-md">
             Total net so far: <span className="font-semibold">{formatUSD(totalNet)}</span>
           </div>
         </div>
