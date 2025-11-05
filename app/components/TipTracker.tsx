@@ -17,6 +17,7 @@ interface TipEntry {
   date: string; // YYYY-MM-DD
   made: number; // gross tips you made
   tipOut: number; // how much you tipped out
+  restaurant?: string; // restaurant name
   notes?: string;
 }
 
@@ -68,8 +69,8 @@ function withinRange(date: string, start?: string, end?: string) {
 
 // CSV helpers
 function toCSV(entries: TipEntry[]) {
-  const header = ["date", "made", "tipOut", "notes"];
-  const rows = entries.map((e) => [e.date, e.made, e.tipOut, (e.notes ?? "").replaceAll("\n", " ")]);
+  const header = ["date", "made", "tipOut", "restaurant", "notes"];
+  const rows = entries.map((e) => [e.date, e.made, e.tipOut, (e.restaurant ?? ""), (e.notes ?? "").replaceAll("\n", " ")]);
   const csv = [header.join(","), ...rows.map((r) => r.join(","))].join("\n");
   return csv;
 }
@@ -81,6 +82,7 @@ function fromCSV(csv: string): TipEntry[] {
     date: header.indexOf("date"),
     made: header.indexOf("made"),
     tipOut: header.indexOf("tipout"),
+    restaurant: header.indexOf("restaurant"),
     notes: header.indexOf("notes"),
   };
   const out: TipEntry[] = [];
@@ -90,8 +92,9 @@ function fromCSV(csv: string): TipEntry[] {
     if (!date) continue;
     const made = Number(cols[idx.made] ?? 0) || 0;
     const tipOut = Number(cols[idx.tipOut] ?? 0) || 0;
+    const restaurant = cols[idx.restaurant]?.trim() || "";
     const notes = cols[idx.notes]?.trim() || "";
-    out.push({ id: uid(), date, made, tipOut, notes });
+    out.push({ id: uid(), date, made, tipOut, restaurant: restaurant || undefined, notes });
   }
   return out;
 }
@@ -101,18 +104,27 @@ function AddEntryForm({ onAdd }: { onAdd: (e: TipEntry) => void }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [made, setMade] = useState(0);
   const [tipOut, setTipOut] = useState(0);
+  const [restaurant, setRestaurant] = useState("");
   const [notes, setNotes] = useState("");
 
   return (
     <Card className="shadow-sm">
       <CardContent className="p-4 grid gap-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 items-end">
           <div>
             <Label className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
               Date
             </Label>
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+          <div>
+            <Label>Restaurant</Label>
+            <Input
+              value={restaurant}
+              onChange={(e) => setRestaurant(e.target.value)}
+              placeholder="Restaurant name"
+            />
           </div>
           <div>
             <Label>Made (Gross)</Label>
@@ -139,9 +151,10 @@ function AddEntryForm({ onAdd }: { onAdd: (e: TipEntry) => void }) {
               className="mt-6 w-full"
               onClick={() => {
                 if (!date) return;
-                onAdd({ id: uid(), date, made, tipOut, notes });
+                onAdd({ id: uid(), date, made, tipOut, restaurant: restaurant || undefined, notes });
                 setMade(0);
                 setTipOut(0);
+                setRestaurant("");
                 setNotes("");
               }}
             >
@@ -197,6 +210,7 @@ function EntriesTable({ entries, onChange }: { entries: TipEntry[]; onChange: (e
           <tr className="text-left border-b">
             {[
               { k: "date", label: "Date" },
+              { k: "restaurant", label: "Restaurant" },
               { k: "made", label: "Made" },
               { k: "tipOut", label: "Tip Out" },
               { k: "net", label: "Net" },
@@ -226,6 +240,19 @@ function EntriesTable({ entries, onChange }: { entries: TipEntry[]; onChange: (e
                     />
                   ) : (
                     <span>{e.date}</span>
+                  )}
+                </td>
+                <td className="py-2 pr-2">
+                  {isEditing ? (
+                    <Input
+                      value={draft?.restaurant ?? e.restaurant ?? ""}
+                      onChange={(ev) => setDraft((d) => ({ ...d!, restaurant: ev.target.value }))}
+                      placeholder="Restaurant name"
+                    />
+                  ) : (
+                    <span className="truncate inline-block max-w-[22ch]" title={e.restaurant}>
+                      {e.restaurant || "-"}
+                    </span>
                   )}
                 </td>
                 <td className="py-2 pr-2">
@@ -320,7 +347,7 @@ function EntriesTable({ entries, onChange }: { entries: TipEntry[]; onChange: (e
           })}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={6} className="text-center text-muted-foreground py-8">
+              <td colSpan={7} className="text-center text-muted-foreground py-8">
                 No shifts yet. Add your first one above.
               </td>
             </tr>
@@ -471,6 +498,9 @@ export default function TipTrackerApp() {
           backgroundAttachment: 'fixed'
         }}
       >
+        {/* Overlay to cover buttons at bottom */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none"></div>
+        
         {/* Content */}
         <div className="relative z-10 max-w-5xl mx-auto grid gap-6">
           <div className="flex items-center justify-between">
@@ -507,12 +537,12 @@ export default function TipTrackerApp() {
                     <DialogTitle>Import CSV</DialogTitle>
                   </DialogHeader>
                   <div className="grid gap-3">
-                    <p className="text-sm text-muted-foreground">Columns required: date, made, tipOut, notes</p>
+                    <p className="text-sm text-muted-foreground">Columns required: date, made, tipOut, restaurant, notes</p>
                     <textarea
                       className="w-full h-48 border rounded-md p-2"
                       value={csvText}
                       onChange={(e) => setCsvText(e.target.value)}
-                      placeholder={`date,made,tipOut,notes\n2025-11-02,220,40,Busy brunch`}
+                      placeholder={`date,made,tipOut,restaurant,notes\n2025-11-02,220,40,Restaurant Name,Busy brunch`}
                     ></textarea>
                     <div className="flex justify-end gap-2">
                       <Button variant="ghost" onClick={() => setImportOpen(false)}>
@@ -545,7 +575,6 @@ export default function TipTrackerApp() {
                 <Plus className="w-4 h-4 mr-1" />
                 Add
               </TabsTrigger>
-              <TabsTrigger value="table">Table</TabsTrigger>
               <TabsTrigger value="report">
                 <BarChart2 className="w-4 h-4 mr-1" />
                 Report
@@ -554,11 +583,11 @@ export default function TipTrackerApp() {
             <TabsContent value="add" className="mt-4">
               <AddEntryForm onAdd={(e) => setEntries((prev) => [e, ...prev])} />
               <div className="text-sm text-muted-foreground mt-2">Your data is saved locally on this device.</div>
-            </TabsContent>
-            <TabsContent value="table" className="mt-4">
-              <SummaryCards entries={entries} />
-              <div className="mt-4">
-                <EntriesTable entries={entries} onChange={setEntries} />
+              <div className="mt-6">
+                <SummaryCards entries={entries} />
+                <div className="mt-4">
+                  <EntriesTable entries={entries} onChange={setEntries} />
+                </div>
               </div>
             </TabsContent>
             <TabsContent value="report" className="mt-4">
