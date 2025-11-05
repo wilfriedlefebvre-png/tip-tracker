@@ -471,9 +471,6 @@ export default function TipTrackerApp() {
           backgroundAttachment: 'fixed'
         }}
       >
-        {/* Overlay for readability */}
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-        
         {/* Content */}
         <div className="relative z-10 max-w-5xl mx-auto grid gap-6">
           <div className="flex items-center justify-between">
