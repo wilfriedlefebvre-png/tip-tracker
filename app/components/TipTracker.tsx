@@ -212,6 +212,8 @@ function AddEntryForm({ onAdd, entries }: { onAdd: (e: TipEntry) => void; entrie
                 setTipOut("");
                 setNotes("");
                 // Keep restaurant name for next entry
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             >
               <Plus className="w-4 h-4 mr-2" /> Add Shift
