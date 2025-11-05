@@ -670,30 +670,66 @@ function SummaryCards({ entries }: { entries: TipEntry[] }) {
   );
 }
 
-function Report({ entries }: { entries: TipEntry[] }) {
+function Report({ entries, expenses }: { entries: TipEntry[]; expenses: Expense[] }) {
   const [start, setStart] = useState<string>(monthStart());
   const [end, setEnd] = useState<string>(monthEnd());
+  const [reportType, setReportType] = useState<"tips" | "expenses" | "both">("both");
 
-  const filtered = useMemo(() => entries.filter((e) => withinRange(e.date, start, end)), [entries, start, end]);
-  const totals = useMemo(
+  const filteredEntries = useMemo(() => entries.filter((e) => withinRange(e.date, start, end)), [entries, start, end]);
+  const filteredExpenses = useMemo(() => expenses.filter((e) => withinRange(e.date, start, end)), [expenses, start, end]);
+
+  const tipTotals = useMemo(
     () => ({
-      made: filtered.reduce((s, e) => s + e.made, 0),
-      out: filtered.reduce((s, e) => s + e.tipOut, 0),
-      net: filtered.reduce((s, e) => s + (e.made - e.tipOut), 0),
+      made: filteredEntries.reduce((s, e) => s + e.made, 0),
+      out: filteredEntries.reduce((s, e) => s + e.tipOut, 0),
+      net: filteredEntries.reduce((s, e) => s + (e.made - e.tipOut), 0),
     }),
-    [filtered]
+    [filteredEntries]
+  );
+
+  const expenseTotal = useMemo(
+    () => filteredExpenses.reduce((s, e) => s + e.amount, 0),
+    [filteredExpenses]
+  );
+
+  const combinedTotal = useMemo(
+    () => tipTotals.net - expenseTotal,
+    [tipTotals.net, expenseTotal]
   );
 
   const perDay = useMemo(() => {
-    const map = new Map<string, { date: string; net: number }>();
-    for (const e of filtered) {
-      const key = e.date;
-      const prev = map.get(key) || { date: key, net: 0 };
-      prev.net += e.made - e.tipOut;
-      map.set(key, prev);
+    const map = new Map<string, { date: string; net: number; expenses: number; combined: number }>();
+    
+    if (reportType === "tips" || reportType === "both") {
+      for (const e of filteredEntries) {
+        const key = e.date;
+        const prev = map.get(key) || { date: key, net: 0, expenses: 0, combined: 0 };
+        prev.net += e.made - e.tipOut;
+        prev.combined += e.made - e.tipOut;
+        map.set(key, prev);
+      }
     }
-    return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
-  }, [filtered]);
+    
+    if (reportType === "expenses" || reportType === "both") {
+      for (const e of filteredExpenses) {
+        const key = e.date;
+        const prev = map.get(key) || { date: key, net: 0, expenses: 0, combined: 0 };
+        prev.expenses += e.amount;
+        prev.combined -= e.amount;
+        map.set(key, prev);
+      }
+    }
+    
+    const data = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+    
+    if (reportType === "tips") {
+      return data.map((d) => ({ date: d.date, value: d.net }));
+    } else if (reportType === "expenses") {
+      return data.map((d) => ({ date: d.date, value: -d.expenses }));
+    } else {
+      return data.map((d) => ({ date: d.date, value: d.combined }));
+    }
+  }, [filteredEntries, filteredExpenses, reportType]);
 
   return (
     <div className="grid gap-4">
@@ -705,6 +741,29 @@ function Report({ entries }: { entries: TipEntry[] }) {
         <div>
           <Label>End</Label>
           <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+        </div>
+        <div>
+          <Label>Report Type</Label>
+          <div className="flex gap-2">
+            <Button
+              variant={reportType === "tips" ? "default" : "secondary"}
+              onClick={() => setReportType("tips")}
+            >
+              Tips
+            </Button>
+            <Button
+              variant={reportType === "expenses" ? "default" : "secondary"}
+              onClick={() => setReportType("expenses")}
+            >
+              Expenses
+            </Button>
+            <Button
+              variant={reportType === "both" ? "default" : "secondary"}
+              onClick={() => setReportType("both")}
+            >
+              Both
+            </Button>
+          </div>
         </div>
         <div className="flex gap-2 pb-1">
           <Button
@@ -732,13 +791,63 @@ function Report({ entries }: { entries: TipEntry[] }) {
         </div>
       </div>
 
-      <SummaryCards entries={filtered} />
+      {reportType === "tips" && (
+        <SummaryCards entries={filteredEntries} />
+      )}
+      {reportType === "expenses" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="shadow-sm">
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Total Expenses</div>
+              <div className="text-2xl font-semibold">{formatUSD(expenseTotal)}</div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Number of Expenses</div>
+              <div className="text-2xl font-semibold">{filteredExpenses.length}</div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      {reportType === "both" && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="shadow-sm">
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Total Made</div>
+              <div className="text-2xl font-semibold">{formatUSD(tipTotals.made)}</div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Total Expenses</div>
+              <div className="text-2xl font-semibold">{formatUSD(expenseTotal)}</div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Net Tips</div>
+              <div className="text-2xl font-semibold">{formatUSD(tipTotals.net)}</div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Combined Net</div>
+              <div className="text-2xl font-semibold">{formatUSD(combinedTotal)}</div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Card className="shadow-sm">
         <CardContent className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <BarChart2 className="w-4 h-4" />
-            <div className="font-medium">Net by Day</div>
+            <div className="font-medium">
+              {reportType === "tips" && "Net Tips by Day"}
+              {reportType === "expenses" && "Expenses by Day"}
+              {reportType === "both" && "Combined Net by Day"}
+            </div>
           </div>
           <div className="w-full h-64">
             <ResponsiveContainer>
@@ -747,7 +856,7 @@ function Report({ entries }: { entries: TipEntry[] }) {
                 <XAxis dataKey="date" fontSize={12} />
                 <YAxis width={60} fontSize={12} />
                 <RTooltip formatter={(v: number) => formatUSD(v)} labelFormatter={(l) => `Date: ${l}`} />
-                <Bar dataKey="net" />
+                <Bar dataKey="value" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -891,7 +1000,7 @@ export default function TipTrackerApp() {
               </div>
             </TabsContent>
             <TabsContent value="report" className="mt-4">
-              <Report entries={entries} />
+              <Report entries={entries} expenses={expenses} />
             </TabsContent>
           </Tabs>
 
