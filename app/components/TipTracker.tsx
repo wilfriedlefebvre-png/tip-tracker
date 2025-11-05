@@ -17,12 +17,21 @@ interface TipEntry {
   date: string; // YYYY-MM-DD
   made: number; // gross tips you made
   tipOut: number; // how much you tipped out
+  hours?: number; // hours worked
   restaurant?: string; // restaurant name
   notes?: string;
 }
 
+interface Expense {
+  id: string;
+  date: string; // YYYY-MM-DD
+  amount: number; // how much
+  description: string; // what
+}
+
 // Helpers
 const LS_KEY = "tipEntries.v1";
+const LS_EXPENSES_KEY = "expenses.v1";
 const LS_RESTAURANT_KEY = "lastRestaurant.v1";
 const LS_RESTAURANTS_KEY = "restaurants.v1";
 
@@ -63,6 +72,21 @@ function saveEntries(entries: TipEntry[]) {
   localStorage.setItem(LS_KEY, JSON.stringify(entries));
 }
 
+function loadExpenses(): Expense[] {
+  try {
+    const raw = localStorage.getItem(LS_EXPENSES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as Expense[];
+    return parsed.map((e) => ({ ...e, amount: Number(e.amount) || 0 }));
+  } catch {
+    return [];
+  }
+}
+
+function saveExpenses(expenses: Expense[]) {
+  localStorage.setItem(LS_EXPENSES_KEY, JSON.stringify(expenses));
+}
+
 function formatUSD(n: number) {
   return n.toLocaleString(undefined, { style: "currency", currency: "USD" });
 }
@@ -93,8 +117,8 @@ function withinRange(date: string, start?: string, end?: string) {
 
 // CSV helpers
 function toCSV(entries: TipEntry[]) {
-  const header = ["date", "made", "tipOut", "restaurant", "notes"];
-  const rows = entries.map((e) => [e.date, e.made, e.tipOut, (e.restaurant ?? ""), (e.notes ?? "").replaceAll("\n", " ")]);
+  const header = ["date", "made", "tipOut", "hours", "restaurant", "notes"];
+  const rows = entries.map((e) => [e.date, e.made, e.tipOut, (e.hours ?? ""), (e.restaurant ?? ""), (e.notes ?? "").replaceAll("\n", " ")]);
   const csv = [header.join(","), ...rows.map((r) => r.join(","))].join("\n");
   return csv;
 }
@@ -106,6 +130,7 @@ function fromCSV(csv: string): TipEntry[] {
     date: header.indexOf("date"),
     made: header.indexOf("made"),
     tipOut: header.indexOf("tipout"),
+    hours: header.indexOf("hours"),
     restaurant: header.indexOf("restaurant"),
     notes: header.indexOf("notes"),
   };
@@ -116,9 +141,10 @@ function fromCSV(csv: string): TipEntry[] {
     if (!date) continue;
     const made = Number(cols[idx.made] ?? 0) || 0;
     const tipOut = Number(cols[idx.tipOut] ?? 0) || 0;
+    const hours = Number(cols[idx.hours] ?? 0) || 0;
     const restaurant = cols[idx.restaurant]?.trim() || "";
     const notes = cols[idx.notes]?.trim() || "";
-    out.push({ id: uid(), date, made, tipOut, restaurant: restaurant || undefined, notes });
+    out.push({ id: uid(), date, made, tipOut, hours: hours || undefined, restaurant: restaurant || undefined, notes });
   }
   return out;
 }
@@ -128,6 +154,7 @@ function AddEntryForm({ onAdd, entries }: { onAdd: (e: TipEntry) => void; entrie
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [made, setMade] = useState("");
   const [tipOut, setTipOut] = useState("");
+  const [hours, setHours] = useState("");
   const [restaurant, setRestaurant] = useState(() => {
     try {
       return localStorage.getItem(LS_RESTAURANT_KEY) || "";
@@ -150,7 +177,7 @@ function AddEntryForm({ onAdd, entries }: { onAdd: (e: TipEntry) => void; entrie
   return (
     <Card className="shadow-sm">
       <CardContent className="p-4 grid gap-4">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 items-end">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 items-end">
           <div>
             <Label className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
@@ -195,6 +222,16 @@ function AddEntryForm({ onAdd, entries }: { onAdd: (e: TipEntry) => void; entrie
               onChange={(e) => setTipOut(e.target.value)}
             />
           </div>
+          <div>
+            <Label>Hours</Label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              placeholder="0.0"
+              value={hours}
+              onChange={(e) => setHours(e.target.value)}
+            />
+          </div>
           <div className="flex gap-2">
             <Button
               className="mt-6 w-full"
@@ -207,9 +244,10 @@ function AddEntryForm({ onAdd, entries }: { onAdd: (e: TipEntry) => void; entrie
                     saveRestaurant(trimmedRestaurant);
                   } catch {}
                 }
-                onAdd({ id: uid(), date, made: Number(made) || 0, tipOut: Number(tipOut) || 0, restaurant: trimmedRestaurant || undefined, notes });
+                onAdd({ id: uid(), date, made: Number(made) || 0, tipOut: Number(tipOut) || 0, hours: Number(hours) || undefined, restaurant: trimmedRestaurant || undefined, notes });
                 setMade("");
                 setTipOut("");
+                setHours("");
                 setNotes("");
                 // Keep restaurant name for next entry
                 // Scroll to top
@@ -271,6 +309,7 @@ function EntriesTable({ entries, onChange }: { entries: TipEntry[]; onChange: (e
               { k: "restaurant", label: "Restaurant" },
               { k: "made", label: "Made" },
               { k: "tipOut", label: "Tip Out" },
+              { k: "hours", label: "Hours" },
               { k: "net", label: "Net" },
               { k: "notes", label: "Notes" },
             ].map((col) => (
@@ -335,6 +374,19 @@ function EntriesTable({ entries, onChange }: { entries: TipEntry[]; onChange: (e
                     />
                   ) : (
                     <span>{formatUSD(e.tipOut)}</span>
+                  )}
+                </td>
+                <td className="py-2 pr-2">
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      value={draft?.hours ?? e.hours ?? ""}
+                      onChange={(ev) => setDraft((d) => ({ ...d!, hours: Number(ev.target.value) || undefined }))}
+                      placeholder="0.0"
+                    />
+                  ) : (
+                    <span>{e.hours ? e.hours.toFixed(1) : "-"}</span>
                   )}
                 </td>
                 <td className="py-2 pr-2 font-medium">{formatUSD(e.made - e.tipOut)}</td>
@@ -405,8 +457,186 @@ function EntriesTable({ entries, onChange }: { entries: TipEntry[]; onChange: (e
           })}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={7} className="text-center text-muted-foreground py-8">
+              <td colSpan={8} className="text-center text-muted-foreground py-8">
                 No shifts yet. Add your first one above.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AddExpenseForm({ onAdd }: { onAdd: (e: Expense) => void }) {
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+
+  return (
+    <Card className="shadow-sm">
+      <CardContent className="p-4 grid gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div>
+            <Label className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              Date
+            </Label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+          <div>
+            <Label>Amount</Label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <Label>Description</Label>
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What was the expense for?"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <Button
+            onClick={() => {
+              if (!date || !description.trim()) return;
+              onAdd({ id: uid(), date, amount: Number(amount) || 0, description: description.trim() });
+              setAmount("");
+              setDescription("");
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          >
+            <Plus className="w-4 h-4 mr-2" /> Add Expense
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ExpensesTable({ expenses, onChange }: { expenses: Expense[]; onChange: (expenses: Expense[]) => void }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Expense | null>(null);
+
+  const sortedExpenses = useMemo(() => {
+    return [...expenses].sort((a, b) => b.date.localeCompare(a.date));
+  }, [expenses]);
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm bg-card/95 backdrop-blur-sm rounded-lg">
+        <thead>
+          <tr className="text-left border-b bg-card/90">
+            <th className="py-2">Date</th>
+            <th className="py-2">Amount</th>
+            <th className="py-2">Description</th>
+            <th className="py-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedExpenses.map((e) => {
+            const isEditing = editingId === e.id;
+            return (
+              <tr key={e.id} className="border-b bg-card/80 hover:bg-card/95 transition-colors">
+                <td className="py-2 pr-2">
+                  {isEditing ? (
+                    <Input
+                      type="date"
+                      value={draft?.date ?? e.date}
+                      onChange={(ev) => setDraft((d) => ({ ...d!, date: ev.target.value }))}
+                    />
+                  ) : (
+                    <span>{e.date}</span>
+                  )}
+                </td>
+                <td className="py-2 pr-2">
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      value={draft?.amount ?? e.amount}
+                      onChange={(ev) => setDraft((d) => ({ ...d!, amount: Number(ev.target.value) }))}
+                    />
+                  ) : (
+                    <span>{formatUSD(e.amount)}</span>
+                  )}
+                </td>
+                <td className="py-2 pr-2">
+                  {isEditing ? (
+                    <Input
+                      value={draft?.description ?? e.description}
+                      onChange={(ev) => setDraft((d) => ({ ...d!, description: ev.target.value }))}
+                    />
+                  ) : (
+                    <span className="truncate inline-block max-w-[30ch]" title={e.description}>
+                      {e.description}
+                    </span>
+                  )}
+                </td>
+                <td className="py-2 flex gap-2">
+                  {isEditing ? (
+                    <>
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        onClick={() => {
+                          const next = expenses.map((x) => (x.id === e.id ? { ...(draft as Expense), id: e.id } : x));
+                          onChange(next);
+                          setEditingId(null);
+                          setDraft(null);
+                        }}
+                      >
+                        <Save className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingId(null);
+                          setDraft(null);
+                        }}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        onClick={() => {
+                          setEditingId(e.id);
+                          setDraft(e);
+                        }}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="destructive"
+                        onClick={() => {
+                          onChange(expenses.filter((x) => x.id !== e.id));
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+          {sortedExpenses.length === 0 && (
+            <tr>
+              <td colSpan={4} className="text-center text-muted-foreground py-8">
+                No expenses yet. Add your first one above.
               </td>
             </tr>
           )}
@@ -531,6 +761,7 @@ function Report({ entries }: { entries: TipEntry[] }) {
 
 export default function TipTrackerApp() {
   const [entries, setEntries] = useState<TipEntry[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [fileName, setFileName] = useState("tips");
 
@@ -543,10 +774,15 @@ export default function TipTrackerApp() {
         saveRestaurant(entry.restaurant);
       }
     });
+    const loadedExpenses = loadExpenses();
+    setExpenses(loadedExpenses);
   }, []);
   useEffect(() => {
     saveEntries(entries);
   }, [entries]);
+  useEffect(() => {
+    saveExpenses(expenses);
+  }, [expenses]);
 
   // Derived stats
   const totalNet = useMemo(() => entries.reduce((s, e) => s + (e.made - e.tipOut), 0), [entries]);
@@ -629,6 +865,9 @@ export default function TipTrackerApp() {
                 <Plus className="w-4 h-4 mr-1" />
                 Add
               </TabsTrigger>
+              <TabsTrigger value="expenses">
+                💰 Expenses
+              </TabsTrigger>
               <TabsTrigger value="report">
                 <BarChart2 className="w-4 h-4 mr-1" />
                 Report
@@ -642,6 +881,13 @@ export default function TipTrackerApp() {
                 <div className="mt-4">
                   <EntriesTable entries={entries} onChange={setEntries} />
                 </div>
+              </div>
+            </TabsContent>
+            <TabsContent value="expenses" className="mt-4">
+              <AddExpenseForm onAdd={(e) => setExpenses((prev) => [e, ...prev])} />
+              <div className="text-sm text-muted-foreground mt-2">Your data is saved locally on this device.</div>
+              <div className="mt-6">
+                <ExpensesTable expenses={expenses} onChange={setExpenses} />
               </div>
             </TabsContent>
             <TabsContent value="report" className="mt-4">
